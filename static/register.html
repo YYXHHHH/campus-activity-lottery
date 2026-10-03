@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>注册 — 校园活动系统</title>
+  <title>{{LABELS['auth.register']}} — {{BRAND_SHORT}}</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="api/brand.css">
+  <script src="api/brand.js"></script>
 </head>
 <body>
 <div class="auth-box">
   <div class="card">
-    <div class="title">注册新账号</div>
+    <div class="title">{{LABELS['auth.register_title']}}</div>
     <form id="register-form" autocomplete="off">
       <label class="field"><span>用户名（4–50 位字母、数字或下划线）*</span>
         <input type="text" id="username" required minlength="4" maxlength="50" pattern="[A-Za-z0-9_]+">
@@ -21,10 +23,7 @@
         <input type="text" id="real_name" required maxlength="50">
       </label>
       <label class="field"><span>角色 *</span>
-        <select id="role" required>
-          <option value="STUDENT">学生</option>
-          <option value="ORGANIZER">组织者</option>
-        </select>
+        <select id="role" required data-role-options="STUDENT,ORGANIZER"></select>
       </label>
       <label class="field"><span>邮箱（可选）</span>
         <input type="email" id="email">

@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>登录 — 校园活动系统</title>
+  <title>{{LABELS['auth.login']}} — {{BRAND_SHORT}}</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="api/brand.css">
+  <script src="api/brand.js"></script>
 </head>
 <body>
 <div class="auth-box">
   <div class="card">
-    <div class="title">校园活动报名抽签与签到系统</div>
+    <div class="title">{{BRAND_NAME}}</div>
+    <p class="small muted" style="text-align:center;margin:-8px 0 14px">{{LABELS['app.tagline']}}</p>
     <form id="login-form" autocomplete="off">
       <label class="field"><span>用户名</span>
         <input type="text" id="username" required autocomplete="username">

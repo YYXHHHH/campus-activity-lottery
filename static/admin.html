@@ -3,23 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>用户管理 — 校园活动系统</title>
+  <title>{{LABELS['user.list']}} — {{BRAND_SHORT}}</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="api/brand.css">
+  <script src="api/brand.js"></script>
 </head>
 <body>
 <header id="navbar"></header>
 
 <main class="container">
-  <h1 class="page-title">用户管理</h1>
+  <h1 class="page-title">{{LABELS['user.list']}}</h1>
 
   <div class="card">
     <div class="inline-filters">
       <input type="search" id="keyword" placeholder="搜索用户名 / 姓名" maxlength="50">
-      <select id="role-filter">
+      <select id="role-filter" data-role-options="STUDENT,ORGANIZER,ADMIN">
         <option value="">全部角色</option>
-        <option value="STUDENT">学生</option>
-        <option value="ORGANIZER">组织者</option>
-        <option value="ADMIN">管理员</option>
       </select>
       <button class="btn btn-primary" id="search-btn" type="button">搜索</button>
       <button class="btn" id="reset-btn" type="button">重置</button>

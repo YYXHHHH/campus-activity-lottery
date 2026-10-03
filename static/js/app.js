@@ -1,16 +1,17 @@
-/* app.js — 公共工具：导航栏渲染、登录态检查、状态徽章、时间格式化、Toast、分页等 */
+/* app.js — 公共工具：品牌初始化、导航栏渲染、登录态检查、状态徽章、时间格式化、Toast、分页等 */
 (function (global) {
   'use strict';
 
-  var ROLE_CN = { STUDENT: '学生', ORGANIZER: '组织者', ADMIN: '管理员' };
-
+  /* 品牌与术语：由 api/brand.js（服务端按 .env 生成）注入，未注入时退化为中文默认值 */
+  var BRAND = global.__BRAND__ || {};
+  var LABELS = BRAND.labels || {};
+  var ROLE_CN = BRAND.role_labels || { STUDENT: '学生', ORGANIZER: '组织者', ADMIN: '管理员' };
   var ACTIVITY_STATUS = {
     DRAFT: { cn: '草稿', cls: 'badge-gray' },
     PUBLISHED: { cn: '报名中', cls: 'badge-blue' },
     LOTTERY_DONE: { cn: '已抽签', cls: 'badge-green' },
     CANCELLED: { cn: '已取消', cls: 'badge-red' }
   };
-
   var REG_STATUS = {
     PENDING: { cn: '待抽签', cls: 'badge-blue' },
     WON: { cn: '已中签', cls: 'badge-green' },
@@ -19,6 +20,21 @@
     CANCELLED: { cn: '已取消', cls: 'badge-red' },
     WITHDRAWN: { cn: '已退出', cls: 'badge-red' }
   };
+
+  /* 用服务端下发的文案覆盖状态徽章文本（键与枚举值一致） */
+  Object.keys(ACTIVITY_STATUS).forEach(function (key) {
+    if (BRAND.status_labels && BRAND.status_labels[key]) ACTIVITY_STATUS[key].cn = BRAND.status_labels[key];
+  });
+  Object.keys(REG_STATUS).forEach(function (key) {
+    if (BRAND.registration_status_labels && BRAND.registration_status_labels[key]) {
+      REG_STATUS[key].cn = BRAND.registration_status_labels[key];
+    }
+  });
+
+  /** 取界面文案：LABELS['activity.unit']，缺省回退到 fallback */
+  function label(key, fallback) {
+    return LABELS[key] || fallback || key;
+  }
 
   function escapeHtml(value) {
     return String(value === null || value === undefined ? '' : value)
@@ -29,12 +45,12 @@
       .replace(/'/g, '&#39;');
   }
 
-  /** ISO 时间 -> 中文本地时间字符串；空值返回占位符 */
+  /** ISO 时间 -> 本地时间字符串；空值返回占位符 */
   function fmtTime(iso) {
     if (!iso) return '—';
     var d = new Date(iso);
     if (isNaN(d.getTime())) return String(iso);
-    return d.toLocaleString('zh-CN');
+    return d.toLocaleString(BRAND.locale || 'zh-CN');
   }
 
   /**
@@ -79,11 +95,11 @@
 
   /* ---------- 导航栏 ---------- */
   var NAV_ITEMS = [
-    { href: 'index.html', text: '活动列表', roles: ['STUDENT', 'ORGANIZER', 'ADMIN'] },
-    { href: 'my_registrations.html', text: '我的报名', roles: ['STUDENT'] },
-    { href: 'organizer.html', text: '我的活动', roles: ['ORGANIZER', 'ADMIN'] },
-    { href: 'activity_manage.html', text: '活动管理', roles: ['ORGANIZER', 'ADMIN'] },
-    { href: 'admin.html', text: '用户管理', roles: ['ADMIN'] }
+    { href: 'index.html', text: '活动列表', labelKey: 'activity.list', roles: ['STUDENT', 'ORGANIZER', 'ADMIN'] },
+    { href: 'my_registrations.html', text: '我的报名', labelKey: 'activity.mine_registrations', roles: ['STUDENT'] },
+    { href: 'organizer.html', text: '我的活动', labelKey: 'activity.mine_managed', roles: ['ORGANIZER', 'ADMIN'] },
+    { href: 'activity_manage.html', text: '活动管理', labelKey: 'activity.manage', roles: ['ORGANIZER', 'ADMIN'] },
+    { href: 'admin.html', text: '用户管理', labelKey: 'user.list', roles: ['ADMIN'] }
   ];
 
   function renderNav(activeHref, user) {
@@ -93,19 +109,38 @@
       return user && item.roles.indexOf(user.role) !== -1;
     }).map(function (item) {
       var cls = item.href === activeHref ? ' class="active"' : '';
-      return '<a href="' + item.href + '"' + cls + '>' + item.text + '</a>';
+      return '<a href="' + item.href + '"' + cls + '>' + escapeHtml(label(item.labelKey, item.text)) + '</a>';
     }).join('');
     var who = user
       ? escapeHtml(user.real_name || user.username) + '（' + (ROLE_CN[user.role] || user.role) + '）'
       : '';
+    var brandName = BRAND.short_name || BRAND.name || '活动系统';
     navbar.className = 'navbar';
     navbar.innerHTML =
-      '<a class="brand" href="index.html">校园活动系统</a>' +
+      '<a class="brand" href="index.html">' + escapeHtml(brandName) + '</a>' +
       '<div class="nav-links">' + links + '</div>' +
       '<div class="nav-user"><span class="who">' + who + '</span>' +
       '<button class="btn" id="nav-logout" type="button">退出</button></div>';
     var logoutBtn = document.getElementById('nav-logout');
     if (logoutBtn) logoutBtn.addEventListener('click', Api.logout);
+  }
+
+  /* ---------- 角色下拉框 ---------- */
+  /** 给带 data-role-options="STUDENT,ORGANIZER" 的 <select> 填充角色选项（文案由后端下发） */
+  function fillRoleOptions(root) {
+    var scope = root || document;
+    var selects = scope.querySelectorAll('select[data-role-options]');
+    Array.prototype.forEach.call(selects, function (select) {
+      var values = (select.getAttribute('data-role-options') || '').split(',');
+      values.forEach(function (raw) {
+        var value = raw.trim();
+        if (!value) return;
+        var option = document.createElement('option');
+        option.value = value;
+        option.textContent = ROLE_CN[value] || value;
+        select.appendChild(option);
+      });
+    });
   }
 
   /**
@@ -115,6 +150,7 @@
    */
   function initPage(opts) {
     opts = opts || {};
+    fillRoleOptions();
     if (!Api.getToken()) {
       Api.redirectToLogin();
       return Promise.resolve(null);
@@ -167,6 +203,9 @@
   }
 
   global.App = {
+    BRAND: BRAND,
+    LABELS: LABELS,
+    label: label,
     ROLE_CN: ROLE_CN,
     escapeHtml: escapeHtml,
     fmtTime: fmtTime,
@@ -175,9 +214,17 @@
     qs: qs,
     toast: toast,
     renderNav: renderNav,
+    fillRoleOptions: fillRoleOptions,
     initPage: initPage,
     renderPagination: renderPagination,
     pct: pct,
     buildQuery: buildQuery
   };
+
+  /* 角色下拉框在脚本加载后立即填充（auth 页面不走 initPage） */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { fillRoleOptions(); });
+  } else {
+    fillRoleOptions();
+  }
 })(window);
