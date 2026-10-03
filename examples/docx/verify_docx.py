@@ -3,7 +3,7 @@
 import os, glob
 from docx import Document
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DOC = os.path.join(BASE, 'docs')
 files = [f for f in sorted(glob.glob(os.path.join(DOC, '**', '*.docx'), recursive=True))
          if '99-archive' not in f]

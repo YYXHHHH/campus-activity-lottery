@@ -28,5 +28,9 @@ htmlcov/
 Thumbs.db
 .DS_Store
 
-# Generated documentation deliverables (regenerate with scripts/md_to_docx.py)
+# Local Python environment
+.tmp-envcheck/
+
+# Generated documentation deliverables (see examples/docx/)
 docs/**/*.docx
+examples/**/*.docx

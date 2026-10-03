@@ -1,19 +1,27 @@
 [project]
-name = "campus-activity-lottery"
-version = "1.0.0"
-description = "Fair, reproducible lottery for limited-quota campus activities: registration, waitlist promotion, QR check-in and Excel export. FastAPI + SQLAlchemy + SQLite."
+name = "activity-lottery-template"
+version = "2.0.0"
+description = "A ready-to-fork template for activity registration, fair reproducible lottery, waitlist promotion and QR check-in. FastAPI + SQLAlchemy + SQLite, vanilla JS frontend, brand and wording configurable from .env."
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
 keywords = [
+    "template",
     "fastapi",
     "sqlalchemy",
     "sqlite",
     "lottery",
-    "campus",
     "registration",
     "waitlist",
     "check-in",
     "qrcode",
     "openpyxl",
     "pytest",
+]
+classifiers = [
+    "Framework :: FastAPI",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
 ]

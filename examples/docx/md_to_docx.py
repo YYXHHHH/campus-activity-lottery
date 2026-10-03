@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Render the Markdown documents under docs/ into Word (.docx).
 
-用法：<bundled python> scripts/md_to_docx.py
-Output: a same-named .docx next to each Markdown file (docs/README.md -> docs/documentation-index.docx).
+用法：python examples/docx/md_to_docx.py
+Output: a same-named .docx next to each Markdown file (README.md -> documentation-index.docx).
 
 渲染特性：A4、中文字体、封面页、自动目录（打开时更新）、页眉文档名、
 页脚“第 X 页 / 共 Y 页”、表格边框与跨页重复表头、代码块灰底。
@@ -16,7 +16,7 @@ from docx.enum.section import WD_SECTION
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ROOT = os.path.join(PROJECT, 'docs')
 CN = '宋体'
 CN_HEAD = '微软雅黑'

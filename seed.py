@@ -1,7 +1,10 @@
-"""演示数据初始化（附录 C）：python seed.py
+"""演示数据初始化：python seed.py
 
+幂等（先查后插），可重复执行。默认写入：
 1 个 ADMIN（.env 注入）+ 1 个 ORGANIZER（org1/123456）+ 20 个 STUDENT（stu001~stu020/123456）；
-3 个 PUBLISHED 活动（名额 10、截止 = 运行时刻 + 2 分钟），每活动 20 条报名（前 15 人接受候补）。
+3 个 PUBLISHED 活动（名额 10、截止 = 运行时刻 + 2 分钟），每个活动 20 条报名（前 15 人接受候补）。
+
+改造成自己的项目时，替换下面的 DEMO_ACTIVITIES 与账号即可。
 """
 
 from __future__ import annotations
@@ -18,9 +21,9 @@ from app.security import hash_password
 DEMO_PASSWORD = "123456"
 
 DEMO_ACTIVITIES = [
-    ("AI 前沿讲座", "特邀教授主讲大模型发展趋势", "图书馆报告厅", 10),
-    ("校园马拉松", "5 公里健康跑，完赛发放纪念奖牌", "东校区田径场", 10),
-    ("摄影采风活动", "春秋校区外景拍摄，提供器材借用", "老校门集合", 10),
+    ("技术分享会", "邀请讲师分享工程实践经验", "报告厅 A", 10),
+    ("城市徒步", "5 公里健步走，完赛发放纪念品", "中心广场集合", 10),
+    ("摄影采风", "外景拍摄，可借用器材", "南门集合", 10),
 ]
 
 
@@ -59,9 +62,9 @@ def main() -> None:
             admin.role = Role.ADMIN.value
             admin.is_active = 1
 
-        organizer = ensure_user(db, "org1", "王老师", Role.ORGANIZER.value)
-        students = [
-            ensure_user(db, f"stu{i:03d}", f"学生{i:03d}", Role.STUDENT.value) for i in range(1, 21)
+        organizer = ensure_user(db, "org1", "演示组织者", Role.ORGANIZER.value)
+        members = [
+            ensure_user(db, f"stu{i:03d}", f"成员{i:03d}", Role.STUDENT.value) for i in range(1, 21)
         ]
         db.flush()
 
@@ -83,17 +86,17 @@ def main() -> None:
             db.add(activity)
             db.flush()
 
-            for index, student in enumerate(students):
+            for index, member in enumerate(members):
                 if db.scalar(
                     select(Registration).where(
-                        Registration.activity_id == activity.id, Registration.user_id == student.id
+                        Registration.activity_id == activity.id, Registration.user_id == member.id
                     )
                 ):
                     continue
                 db.add(
                     Registration(
                         activity_id=activity.id,
-                        user_id=student.id,
+                        user_id=member.id,
                         status=RegistrationStatus.PENDING,
                         accept_waitlist=index < 15,
                     )
