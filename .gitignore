@@ -27,10 +27,3 @@ htmlcov/
 .idea/
 Thumbs.db
 .DS_Store
-
-# Local Python environment
-.tmp-envcheck/
-
-# Generated documentation deliverables (see examples/docx/)
-docs/**/*.docx
-examples/**/*.docx

@@ -1,4 +1,4 @@
-"""M9 管理员用户管理（§2.11、§3.6）。"""
+"""M9 管理员用户管理。"""
 
 from __future__ import annotations
 

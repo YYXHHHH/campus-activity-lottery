@@ -1,4 +1,4 @@
-"""M4 抽签 + M5 候补递补（§5.2、§5.3）。"""
+"""M4 抽签 + M5 候补递补。"""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def _count_by_status(db, activity_id: int) -> dict[str, int]:
 
 
 def run_lottery(db, activity_id: int, *, force: bool = False) -> dict:
-    """抽签唯一入口：幂等、随机、可复现（§5.2）。"""
+    """抽签唯一入口：幂等、随机、可复现。"""
     activity = db.get(Activity, activity_id)
     if activity is None:
         raise NotFound("活动不存在")
@@ -103,7 +103,7 @@ def run_lottery(db, activity_id: int, *, force: bool = False) -> dict:
 
 
 def promote_waitlist(db, activity: Activity) -> list[Registration]:
-    """按 lottery_rank 升序补足名额；不 commit、不 rollback，事务控制权归调用方（§5.3）。"""
+    """按 lottery_rank 升序补足名额；不 commit、不 rollback，事务控制权归调用方。"""
     db.flush()  # 先落盘调用方在本次事务中的状态变更，再统计 WON，避免读到过期计数
     won_count = db.scalar(
         select(func.count(Registration.id)).where(

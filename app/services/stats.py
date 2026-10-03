@@ -1,4 +1,4 @@
-"""M7 统计计算（§5.7、S8）。"""
+"""M7 统计计算。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""M3 报名 / 取消退出 / 我的报名（§2.5）。"""
+"""M3 报名 / 取消退出 / 我的报名。"""
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def signup(db, activity: Activity, user, accept_waitlist: bool) -> Registration:
 
 
 def cancel_or_withdraw(db, activity: Activity, user) -> dict:
-    """取消/退出统一入口，按当前状态分流（§2.5-4）。"""
+    """取消/退出统一入口，按当前状态分流。"""
     registration = db.scalar(
         select(Registration).where(
             Registration.activity_id == activity.id, Registration.user_id == user.id

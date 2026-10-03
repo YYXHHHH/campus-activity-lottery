@@ -1,4 +1,4 @@
-"""M2 活动管理 + M7 统计/导出路由（§2.4、§3.3、I-2、I-4）。"""
+"""M2 活动管理 + M7 统计/导出路由。"""
 
 from __future__ import annotations
 
@@ -209,7 +209,7 @@ def edit_activity(
 
     new_deadline = as_utc(changes.get("signup_deadline")) if changes.get("signup_deadline") else as_utc(activity.signup_deadline)
     new_start = as_utc(changes.get("start_time")) if changes.get("start_time") else as_utc(activity.start_time)
-    # PUBLISHED 允许把截止时间改为过去（提前截止，§2.4 补充约定）；DRAFT 仍须晚于当前
+    # PUBLISHED 允许把截止时间改为过去；DRAFT 仍须晚于当前
     _validate_time_fields(
         start_time=new_start,
         signup_deadline=new_deadline,

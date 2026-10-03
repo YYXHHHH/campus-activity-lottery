@@ -1,4 +1,4 @@
-"""数据完整性与性能验收（§4.5、§5.2 性能、§10.2）。"""
+"""数据完整性与性能验收。"""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from helpers import close_signup, create_activity, create_students, make_user, u
 
 
 def test_unique_activity_user_blocks_duplicate_rows(client, db):
-    """UNIQUE(activity_id, user_id) 是并发下的最终防线（§4.5）。"""
+    """UNIQUE(activity_id, user_id) 是并发下的最终防线。"""
     org = make_user(client, "org1", "ORGANIZER")
     activity = create_activity(client, org["headers"])
     (student,) = create_students(client, 1)
@@ -72,7 +72,7 @@ def test_checkin_unique_registration_blocks_double_row(client, db):
 
 
 def test_lottery_is_reproducible_from_seed(client, db):
-    """用 lottery_seed 重建 shuffle 可复现同一份名单（§4.3 审计复现）。"""
+    """用 lottery_seed 重建 shuffle 可复现同一份名单。"""
     org = make_user(client, "org1", "ORGANIZER")
     activity = create_activity(client, org["headers"], quota=4)
     students = create_students(client, 10)
@@ -117,7 +117,7 @@ def test_lottery_is_reproducible_from_seed(client, db):
 
 
 def test_lottery_1000_registrations_under_one_second(client, db):
-    """§10.2 性能验收：1000 条报名抽签 < 1s。"""
+    """性能验收：1000 条报名抽签 < 1s。"""
     org = make_user(client, "org1", "ORGANIZER")
     now = utcnow()
     activity = Activity(

@@ -1,4 +1,4 @@
-"""FR-7 统计（§5.7、S8）。"""
+"""FR-7 统计。"""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def _tokens_for(client, db, org, activity_id):
 
 
 def test_stats_matches_document_example(client, db):
-    """20 人报名 / 10 名额 / 15 人接受候补 / 7 人签到 → 文档 §5.7 示例值。"""
+    """20 人报名 / 10 名额 / 15 人接受候补 / 7 人签到 → 校验六项计数与三项比率的取值。"""
     org = make_user(client, "org1", "ORGANIZER")
     activity = create_activity(client, org["headers"], quota=10)
     students = create_students(client, 20)

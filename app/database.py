@@ -1,4 +1,4 @@
-"""M0 数据库会话、时间工具与 SQLite 并发优化（§4.4、§5.9）。"""
+"""M0 数据库会话、时间工具与 SQLite 并发优化。"""
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def create_all() -> None:
 
 
 def clamp_page(page: int | None, size: int | None) -> tuple[int, int]:
-    """分页入参归一：page ≥ 1，size 默认 10、上限 50（§3.1-5、§7.2 输入边界）。"""
+    """分页入参归一：page ≥ 1，size 默认 10、上限 50。"""
     return max(1, int(page or 1)), min(50, max(1, int(size or 10)))
 
 
@@ -88,7 +88,7 @@ def build_page(items: list, total: int, page: int, size: int) -> dict:
 
 
 def retry_on_locked(times: int = 3, base_delay: float = 0.05):
-    """SQLite `database is locked` 退避重试（§5.9-2），用于高频写用例函数。"""
+    """SQLite `database is locked` 退避重试，用于高频写用例函数。"""
 
     def decorator(func):
         @functools.wraps(func)

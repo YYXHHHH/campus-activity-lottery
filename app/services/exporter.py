@@ -1,4 +1,4 @@
-"""M7 Excel 导出（§5.8、S9）。"""
+"""M7 Excel 导出。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""FR-5 候补递补（§5.3、I-3、I-4）。"""
+"""FR-5 候补递补。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""FR-2.8 权限边界：角色 + 归属双重校验（§7.2 权限边界）。"""
+"""FR-2.8 权限边界：角色 + 归属双重校验。"""
 
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def test_organizer_cannot_touch_other_activities(client):
 
 
 def test_organizer_cannot_register_for_any_activity(client):
-    """统一按「非 STUDENT 不可报名」实现（§2.5-1、§7.2）。"""
+    """统一按「非 STUDENT 不可报名」实现。"""
     org1, org2, activity = _organizers_and_activity(client)
     own = client.post(f"/api/activities/{activity['id']}/registrations", json={}, headers=org1["headers"])
     assert own.status_code == 403 and own.json()["code"] == 40301
@@ -84,7 +84,7 @@ def test_student_cannot_access_admin_api(client):
 
 
 def test_admin_passes_owner_checks(client, db):
-    """ADMIN 单独放行：可操作他人活动（§5.1）。"""
+    """ADMIN 单独放行：可操作他人活动。"""
     _org1, _org2, activity = _organizers_and_activity(client)
     admin = admin_session(client, db)
 
@@ -96,7 +96,7 @@ def test_admin_passes_owner_checks(client, db):
 
 
 def test_qrcode_permission_isolation(client):
-    """学生查看他人二维码 403；组织者取他人报名的二维码同样 403（§5.5）。"""
+    """学生查看他人二维码 403；组织者取他人报名的二维码同样 403。"""
     org1 = make_user(client, "org1", "ORGANIZER")
     activity = create_activity(client, org1["headers"])
     stu1, stu2 = create_students(client, 2)

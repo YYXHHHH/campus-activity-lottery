@@ -1,4 +1,4 @@
-"""pytest 夹具：内存 SQLite + TestClient（§10.1）。"""
+"""pytest 夹具：内存 SQLite + TestClient。"""
 
 from __future__ import annotations
 

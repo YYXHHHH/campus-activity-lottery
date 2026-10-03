@@ -1,4 +1,4 @@
-"""M0 Pydantic 请求/响应模型（§3.7，时间序列化为 ISO 8601 UTC，S5）。"""
+"""M0 Pydantic 请求/响应模型。"""
 
 from __future__ import annotations
 

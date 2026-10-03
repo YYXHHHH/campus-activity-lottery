@@ -1,4 +1,4 @@
-"""M0 ORM 模型（§4.2 DDL 映射、§4.4 实现要点）。"""
+"""M0 ORM 模型。"""
 
 from __future__ import annotations
 

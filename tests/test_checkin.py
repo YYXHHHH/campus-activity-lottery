@@ -1,4 +1,4 @@
-"""FR-6 签到：校验链、重复签到、跨活动码、伪码、手动补签（§5.6、§3.5）。"""
+"""FR-6 签到：校验链、重复签到、跨活动码、伪码、手动补签。"""
 
 from __future__ import annotations
 
@@ -117,7 +117,7 @@ def test_checkin_duplicate_returns_first_time(client, db):
 
 
 def test_checkin_cross_activity_code_rejected(client, db):
-    """A 活动的码拿到 B 活动签到 → 40001（§5.6-3）。"""
+    """A 活动的码拿到 B 活动签到 → 40001。"""
     org, other_org, activity, second_activity, _students = _setup(client, db)
     target = _winner_registrations(client, db, other_org, second_activity["id"])[0]
 

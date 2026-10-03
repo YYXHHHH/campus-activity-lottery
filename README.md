@@ -11,7 +11,7 @@
 - **后端**：FastAPI + SQLAlchemy 2.0 + SQLite（只改一个环境变量即可切 MySQL）
 - **前端**：原生 HTML / CSS / JS，无需 npm、无需打包
 - **测试**：78 个 pytest 用例（内存 SQLite，不污染本地库）
-- **定制**：品牌与术语集中在配置层，见 [`docs/customization.md`](docs/customization.md)
+- **定制**：品牌与术语集中在配置层，改 `.env` 即可，见下文「定制成你自己的项目」
 
 > 默认界面语言为中文；术语全部可通过 `UI_LABELS` 覆盖，换成英文或其他场景无需改代码。
 
@@ -80,7 +80,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ## 定制成你自己的项目
 
-完整指南见 [`docs/customization.md`](docs/customization.md)，最常见的三件事：
+最常见的三件事：
 
 ```dotenv
 # 1) 换站名与主题色（改 .env，重启即生效）
@@ -96,6 +96,44 @@ UI_LABELS={"activity.list_title": "会议室列表", "activity.unit": "会议室
 3）换数据模型：编辑 `app/models.py` → 调整 `app/schemas.py` 与 `app/routers/*` → 删除本地 `app.db`（模板不包含迁移工具，改表结构后重建即可）→ 补 `seed.py` 与 `tests/`。
 
 > 品牌注入是三层联动的：HTML 里的 `{{BRAND_NAME}}` / `{{LABELS[...]}}` 由服务端渲染（`app/main.py` 的 `TemplateStaticFiles`），前端 JS 通过 `api/brand.js` 注入的 `window.__BRAND__` 读取，另有只读接口 `GET /api/meta` 供外部调用。
+
+### 可覆盖的术语键名
+
+术语默认值定义在 [`app/branding.py`](app/branding.py) 的 `LABELS`，用 `UI_LABELS` 覆盖任意项。常用键：
+
+| 键 | 默认值 | 出现位置 |
+| --- | --- | --- |
+| `app.tagline` | 报名 · 抽签 · 签到 | 登录页副标题 |
+| `activity.list` / `activity.list_title` | 活动列表 / 校园活动 | 导航栏、首页大标题 |
+| `activity.mine_registrations` | 我的报名 | 导航栏、页面标题 |
+| `activity.mine_managed` | 我的活动 | 导航栏、页面标题 |
+| `activity.manage` / `activity.detail` | 活动管理 / 活动详情 | 导航栏、页面标题 |
+| `activity.unit` | 活动 | 各处文案 |
+| `checkin.title` / `checkin.onsite` | 扫码签到 / 现场签到 | 签到页 |
+| `user.list` | 用户管理 | 导航栏、页面标题 |
+| `user.student` / `user.organizer` / `user.admin` | 学生 / 组织者 / 管理员 | 角色下拉框、导航栏身份 |
+
+状态徽章文案在 `app/branding.py` 的 `STATUS_LABELS`、`REGISTRATION_STATUS_LABELS`、`ROLE_LABELS`，键名与 `app/models.py` 的枚举值一致。
+
+### 加减页面
+
+1. 在 `static/` 新建页面，头部照抄现有页面的三件套：`css/style.css` + `api/brand.css` + `api/brand.js`；
+2. 脚本里调用 `App.initPage({ page: 'xxx.html', roles: ['ADMIN'] })`，它负责渲染导航栏、校验登录态与角色；
+3. 要出现在导航栏，就编辑 `static/js/app.js` 的 `NAV_ITEMS`（`href` + `labelKey` + `roles`）；
+4. 新接口写在 `app/routers/`，并在 `app/main.py` 里 `include_router`。
+
+不需要的页面直接删文件、从 `NAV_ITEMS` 去掉即可。
+
+## 关键实现约定
+
+| 约定 | 说明 |
+| --- | --- |
+| 统一响应信封 | 所有接口返回 `{code, message, data}`；`code != 0` 表示业务错误，HTTP 状态码同步设置。前端 `api.js` 统一解包，`40101` 自动清理登录态并跳登录页 |
+| 抽签公平与幂等 | 仅 `PUBLISHED` 且已过截止的活动可抽签；用条件 `UPDATE` 抢占 `LOTTERY_DONE` 状态，天然防并发重复抽签；`lottery_seed` 落库，凭同一份数据可复算出同一结果，便于事后审计 |
+| 候补递补 | 退出或增加名额时，在同一事务内按 `lottery_rank` 立即递补，避免名额空置 |
+| 时间与时区 | 数据库统一存 UTC 朴素时间；前端 `datetime-local` 输入经 `App.toUtcIso()` 转 ISO 串提交，展示用 `App.fmtTime()` 转回本地时间 |
+| 签到防重 | `Checkin.registration_id` 唯一约束兜底；重复签到不报错，返回首次签到时间；二维码同时接受完整 URL 与裸码值 |
+| 权限模型 | 角色（`require_role`）+ 归属（`assert_activity_owner`）双重校验；学生不可报名他人活动，组织者不可查看他人报名的二维码 |
 
 ## 页面一览
 
@@ -126,8 +164,6 @@ app/
   scheduler.py        到期自动抽签
 static/               前端页面（原生 HTML/CSS/JS；HTML 走 Jinja2 注入品牌）
 tests/                pytest 用例（内存 SQLite）
-examples/             可选示例与产出物如何自行移除
-docs/                 定制指南与架构说明
 seed.py               幂等演示数据
 init_db.py            单独建表
 run.bat               Windows 一键启动（demo / dev 两种模式）

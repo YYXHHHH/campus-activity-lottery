@@ -1,4 +1,4 @@
-"""S2/S3 分页与排序约定（§3.1-5~7、§7.2 输入边界）。"""
+"""S2/S3 分页与排序约定。"""
 
 from __future__ import annotations
 

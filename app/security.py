@@ -1,4 +1,4 @@
-"""M0 密码哈希与 JWT 签发解析（§2.2、§5.1）。"""
+"""M0 密码哈希与 JWT 签发解析。"""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, password_hash: str) -> bool:
     try:
         return _ctx.verify(password, password_hash)
-    except Exception as exc:  # bcrypt/passlib 版本异常一律视为验证失败（§2.2、R5）
+    except Exception as exc:  # bcrypt/passlib 版本异常一律视为验证失败
         logger.warning("[security] 密码校验异常：%s", exc)
         return False
 

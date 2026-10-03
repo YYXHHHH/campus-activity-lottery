@@ -1,4 +1,4 @@
-"""M1 认证与用户（§2.3、§3.2）。"""
+"""M1 认证与用户。"""
 
 from __future__ import annotations
 

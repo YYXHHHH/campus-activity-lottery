@@ -1,4 +1,4 @@
-"""M3 报名路由 + 二维码（§2.5、§3.4、§5.5）。"""
+"""M3 报名路由 + 二维码。"""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def registration_qrcode(
         raise NotFound("报名记录不存在")
 
     activity = db.get(Activity, registration.activity_id)
-    if user.id != registration.user_id:  # 非本人：仅该活动组织者或 ADMIN（§5.5）
+    if user.id != registration.user_id:  # 非本人：仅该活动组织者或 ADMIN
         if activity is None:
             raise NotFound("活动不存在")
         assert_activity_owner(activity, user)

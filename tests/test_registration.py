@@ -1,4 +1,4 @@
-"""FR-3 报名 / 取消 / 我的报名（§2.5、§3.4）。"""
+"""FR-3 报名 / 取消 / 我的报名。"""
 
 from __future__ import annotations
 

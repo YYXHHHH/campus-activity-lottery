@@ -1,4 +1,4 @@
-"""M6 签到路由（§3.5）。"""
+"""M6 签到路由。"""
 
 from __future__ import annotations
 

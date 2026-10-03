@@ -21,10 +21,10 @@ uvicorn app.main:app --reload --port 8000
 python -m pytest                   # 78 项用例应全部通过
 ```
 
-- 改了接口或模型 → 同步更新 `tests/` 与 `docs/architecture.md`；
-- 改了术语或品牌 → 同步更新 `app/branding.py` 与 `docs/customization.md` 的键名表；
-- 新增配置项 → 补进 `.env.example` 与 README 的配置表；
-- 保持"零构建前端"的约束：不引入 npm 依赖与打包步骤。
+- 改了接口或模型 → 同步更新 `tests/` 与 README 的「关键实现约定」；
+- 改了术语或品牌 → 同步更新 `app/branding.py` 与 README 的「可覆盖的术语键名」表；
+- 新增配置项 → 补进 `.env.example` 与 README 的配置项说明表；
+- 保持「零构建前端」的约束：不引入 npm 依赖与打包步骤。
 
 ## 代码约定
 

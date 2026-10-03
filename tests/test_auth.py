@@ -1,4 +1,4 @@
-"""FR-1 认证与用户（§2.3、§10.1 test_register_login）。"""
+"""FR-1 认证与用户。"""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def test_register_login(client, db):
 
 
 def test_register_validation(client):
-    """用户名 4-50 位、密码 ≥6 位、role 不允许 ADMIN（§2.3-1）。"""
+    """用户名 4-50 位、密码 ≥6 位、role 不允许 ADMIN。"""
     short_name = client.post(
         "/api/auth/register", json={"username": "ab", "password": "123456", "real_name": "甲", "role": "STUDENT"}
     )
@@ -68,7 +68,7 @@ def test_login_without_token_and_tampered_token(client):
 
 
 def test_disabled_user_blocked_on_login_and_request(client, db):
-    """禁用后：登录 40101；已登录用户的下一次请求同样被拒（§2.3-5、FR-1.7）。"""
+    """禁用后：登录 40101；已登录用户的下一次请求同样被拒。"""
     admin = admin_session(client, db)
     student = make_user(client, "stu001")
 

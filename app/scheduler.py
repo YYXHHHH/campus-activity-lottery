@@ -1,4 +1,4 @@
-"""M8 自动抽签调度（§5.4、I-1）。"""
+"""M8 自动抽签调度。"""
 
 from __future__ import annotations
 

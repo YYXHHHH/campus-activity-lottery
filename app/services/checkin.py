@@ -1,4 +1,4 @@
-"""M6 签到校验链（§5.6、§3.5）。"""
+"""M6 签到校验链。"""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def normalize_code(raw: str | None) -> str:
-    """支持直接传码或传完整二维码 URL（§3.5）。"""
+    """支持直接传码或传完整二维码 URL。"""
     text = (raw or "").strip()
     if not text:
         raise BadRequest("签到码不能为空")
@@ -70,7 +70,7 @@ def _record(db, activity: Activity, registration: Registration, operator: User, 
     db.add(checkin)
     try:
         db.commit()
-    except IntegrityError as exc:  # 并发重复签到由 UNIQUE 兜底（§4.5、I-5）
+    except IntegrityError as exc:  # 并发重复签到由 UNIQUE 兜底
         db.rollback()
         again = db.scalar(select(Checkin).where(Checkin.registration_id == registration.id))
         if again is None:

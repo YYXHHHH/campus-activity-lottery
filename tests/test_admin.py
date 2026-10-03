@@ -1,4 +1,4 @@
-"""M9 管理员用户管理（§2.11、§3.6）。"""
+"""M9 管理员用户管理。"""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def test_admin_list_filters_and_pagination(client, db):
 
 
 def test_role_change_rules(client, db):
-    """仅可在 STUDENT/ORGANIZER 间互改，不能提为 ADMIN，不能改 ADMIN 角色（§2.11）。"""
+    """仅可在 STUDENT/ORGANIZER 间互改，不能提为 ADMIN，不能改 ADMIN 角色。"""
     admin = admin_session(client, db)
     student = make_user(client, "stu001")
     student_id = client.get("/api/admin/users", params={"keyword": "stu001"}, headers=admin["headers"]).json()["data"]["items"][0]["id"]

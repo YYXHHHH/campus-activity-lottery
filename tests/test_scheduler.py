@@ -1,4 +1,4 @@
-"""M8 自动抽签调度（§5.4、I-1）。"""
+"""M8 自动抽签调度。"""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def test_scan_is_idempotent(client, db, monkeypatch):
 
 
 def test_one_failure_does_not_block_others(client, db, monkeypatch):
-    """单活动失败记日志后继续下一个（§2.10、R10）。"""
+    """单活动失败记日志后继续下一个。"""
     monkeypatch.setattr(scheduler_module, "SessionLocal", TestingSessionLocal)
     org = make_user(client, "org1", "ORGANIZER")
     broken = _due_activity(client, org, title="将失败的活动")

@@ -1,4 +1,4 @@
-"""M0 统一异常体系与响应包装（§7.1、附录 B）。"""
+"""M0 统一异常体系与响应包装。"""
 
 from __future__ import annotations
 

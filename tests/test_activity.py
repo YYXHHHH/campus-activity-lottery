@@ -1,4 +1,4 @@
-"""FR-2 活动管理：创建校验、状态机、编辑守卫、列表筛选、详情兜底（§2.4、I-2、S10）。"""
+"""FR-2 活动管理：创建校验、状态机、编辑守卫、列表筛选、详情兜底。"""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from helpers import activity_payload, create_activity, create_students, make_use
 
 
 def test_create_activity_validation(client):
-    """deadline≤now 400；quota=0 400/422；deadline>start 400（§10.1）。"""
+    """deadline≤now 400；quota=0 400/422；deadline>start 400。"""
     org = make_user(client, "org1", "ORGANIZER")
 
     past_deadline = client.post(
@@ -91,7 +91,7 @@ def test_edit_guard_blocks_after_lottery(client):
 
 
 def test_edit_rejected_after_real_deadline_passed(client):
-    """已截止的活动不可编辑（§7.2 状态边界）。"""
+    """已截止的活动不可编辑。"""
     org = make_user(client, "org1", "ORGANIZER")
     activity = create_activity(client, org["headers"], signup_deadline=offset(seconds=1))
     time.sleep(1.6)
@@ -132,7 +132,7 @@ def test_quota_shrink_below_won_rejected(client, db):
 
 
 def test_published_activity_can_close_signup_early(client):
-    """§2.4 补充约定：PUBLISHED 状态下把截止时间改为过去是允许的，下一次访问触发抽签。"""
+    """PUBLISHED 状态下把截止时间改为过去是允许的，下一次访问触发抽签。"""
     org = make_user(client, "org1", "ORGANIZER")
     activity = create_activity(client, org["headers"], signup_deadline=offset(days=1))
     moved = client.patch(

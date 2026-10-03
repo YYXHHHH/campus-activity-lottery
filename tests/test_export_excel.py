@@ -1,4 +1,4 @@
-"""FR-7.3~7.6 Excel 导出（§5.8、S9）。"""
+"""FR-7.3~7.6 Excel 导出。"""
 
 from __future__ import annotations
 
