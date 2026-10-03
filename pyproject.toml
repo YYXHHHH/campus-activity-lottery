@@ -1,0 +1,19 @@
+[project]
+name = "campus-activity-lottery"
+version = "1.0.0"
+description = "Fair, reproducible lottery for limited-quota campus activities: registration, waitlist promotion, QR check-in and Excel export. FastAPI + SQLAlchemy + SQLite."
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = [
+    "fastapi",
+    "sqlalchemy",
+    "sqlite",
+    "lottery",
+    "campus",
+    "registration",
+    "waitlist",
+    "check-in",
+    "qrcode",
+    "openpyxl",
+    "pytest",
+]

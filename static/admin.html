@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户管理 — 校园活动系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="navbar"></header>
+
+<main class="container">
+  <h1 class="page-title">用户管理</h1>
+
+  <div class="card">
+    <div class="inline-filters">
+      <input type="search" id="keyword" placeholder="搜索用户名 / 姓名" maxlength="50">
+      <select id="role-filter">
+        <option value="">全部角色</option>
+        <option value="STUDENT">学生</option>
+        <option value="ORGANIZER">组织者</option>
+        <option value="ADMIN">管理员</option>
+      </select>
+      <button class="btn btn-primary" id="search-btn" type="button">搜索</button>
+      <button class="btn" id="reset-btn" type="button">重置</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>状态</th>
+            <th>邮箱</th><th>手机号</th><th>注册时间</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="user-body"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody>
+      </table>
+    </div>
+    <div id="pager"></div>
+    <p class="small muted">说明：不允许将任何用户设为/取消管理员角色（ADMIN 账号角色不可修改），后端会做最终校验。</p>
+  </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  'use strict';
+  var PAGE_SIZE = 10;
+  var state = { page: 1, keyword: '', role: '' };
+  var bodyEl = document.getElementById('user-body');
+  var pagerEl = document.getElementById('pager');
+
+  App.initPage({ page: 'admin.html', roles: ['ADMIN'] }).then(function (user) {
+    if (!user) return;
+    load();
+  });
+
+  function load() {
+    bodyEl.innerHTML = '<tr><td colspan="9" class="empty">加载中…</td></tr>';
+    Api.get('/admin/users' + App.buildQuery({
+      page: state.page, size: PAGE_SIZE, keyword: state.keyword, role: state.role
+    })).then(function (data) {
+      render(data);
+    }).catch(function (err) {
+      bodyEl.innerHTML = '<tr><td colspan="9" class="empty">加载失败</td></tr>';
+      App.toast(err.message || '用户列表加载失败', 'error');
+    });
+  }
+
+  function render(data) {
+    if (!data.items.length) {
+      bodyEl.innerHTML = '<tr><td colspan="9" class="empty">暂无用户</td></tr>';
+      App.renderPagination(pagerEl, data, goPage);
+      return;
+    }
+    bodyEl.innerHTML = data.items.map(function (u) {
+      var roleCn = App.ROLE_CN[u.role] || u.role;
+      var actions;
+      if (u.role === 'ADMIN') {
+        actions = '<span class="muted small">不可操作</span>';
+      } else {
+        var targetRole = u.role === 'STUDENT' ? 'ORGANIZER' : 'STUDENT';
+        var targetRoleCn = App.ROLE_CN[targetRole];
+        actions =
+          '<button class="btn" type="button" data-act="role" data-id="' + u.id + '" data-role="' + targetRole + '">改为' + targetRoleCn + '</button> ' +
+          '<button class="btn ' + (u.is_active ? 'btn-danger' : 'btn-success') + '" type="button" data-act="toggle" data-id="' + u.id + '" data-active="' + u.is_active + '">' +
+          (u.is_active ? '禁用' : '启用') + '</button>';
+      }
+      return '<tr>' +
+        '<td>' + u.id + '</td>' +
+        '<td>' + App.escapeHtml(u.username) + '</td>' +
+        '<td>' + App.escapeHtml(u.real_name) + '</td>' +
+        '<td>' + App.escapeHtml(roleCn) + '</td>' +
+        '<td>' + (u.is_active ? '<span class="badge badge-ok">正常</span>' : '<span class="badge badge-off">已禁用</span>') + '</td>' +
+        '<td>' + App.escapeHtml(u.email || '—') + '</td>' +
+        '<td>' + App.escapeHtml(u.phone || '—') + '</td>' +
+        '<td>' + App.fmtTime(u.created_at) + '</td>' +
+        '<td><div class="flex">' + actions + '</div></td>' +
+        '</tr>';
+    }).join('');
+    App.renderPagination(pagerEl, data, goPage);
+  }
+
+  bodyEl.addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    var id = btn.dataset.id;
+    btn.disabled = true;
+    var payload;
+    if (btn.dataset.act === 'role') {
+      payload = { role: btn.dataset.role };
+    } else {
+      payload = { is_active: btn.dataset.active === '1' ? 0 : 1 };
+    }
+    Api.patch('/admin/users/' + id, payload).then(function () {
+      App.toast('修改成功', 'success');
+      load();
+    }).catch(function (err) {
+      App.toast(err.message || '修改失败', 'error');
+      btn.disabled = false;
+    });
+  });
+
+  document.getElementById('search-btn').addEventListener('click', function () {
+    state.page = 1;
+    state.keyword = document.getElementById('keyword').value.trim();
+    state.role = document.getElementById('role-filter').value;
+    load();
+  });
+  document.getElementById('reset-btn').addEventListener('click', function () {
+    state.page = 1;
+    state.keyword = '';
+    state.role = '';
+    document.getElementById('keyword').value = '';
+    document.getElementById('role-filter').value = '';
+    load();
+  });
+  document.getElementById('keyword').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') document.getElementById('search-btn').click();
+  });
+  document.getElementById('role-filter').addEventListener('change', function () {
+    state.page = 1;
+    state.role = this.value;
+    load();
+  });
+
+  function goPage(page) {
+    state.page = page;
+    load();
+  }
+})();
+</script>
+</body>
+</html>

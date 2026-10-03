@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的报名 — 校园活动系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="navbar"></header>
+
+<main class="container">
+  <h1 class="page-title">我的报名</h1>
+  <div class="table-wrap card">
+    <table class="data">
+      <thead>
+        <tr>
+          <th>活动</th><th>地点</th><th>开始时间</th><th>报名截止</th>
+          <th>活动状态</th><th>报名状态</th><th>排名</th><th>签到</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="reg-body"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody>
+    </table>
+  </div>
+  <div id="pager"></div>
+
+  <div class="modal-mask" id="qr-modal" hidden>
+    <div class="modal">
+      <h3 style="margin:0">签到二维码</h3>
+      <div id="qr-box" style="text-align:center"></div>
+      <p class="small muted">向组织者出示此二维码完成签到。</p>
+      <div class="close-row"><button class="btn" id="qr-close" type="button">关闭</button></div>
+    </div>
+  </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  'use strict';
+  var PAGE_SIZE = 10;
+  var state = { page: 1 };
+  var bodyEl = document.getElementById('reg-body');
+  var pagerEl = document.getElementById('pager');
+  var modal = document.getElementById('qr-modal');
+  var qrBox = document.getElementById('qr-box');
+  var lastObjectUrl = null;
+
+  document.getElementById('qr-close').addEventListener('click', closeModal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+
+  function closeModal() {
+    modal.hidden = true;
+    if (lastObjectUrl) { URL.revokeObjectURL(lastObjectUrl); lastObjectUrl = null; }
+    qrBox.innerHTML = '';
+  }
+
+  App.initPage({ page: 'my_registrations.html', roles: ['STUDENT'] }).then(function (user) {
+    if (!user) return;
+    load();
+  });
+
+  function load() {
+    Api.get('/me/registrations' + App.buildQuery({ page: state.page, size: PAGE_SIZE })).then(function (data) {
+      render(data);
+    }).catch(function (err) {
+      bodyEl.innerHTML = '<tr><td colspan="9" class="empty">加载失败</td></tr>';
+      App.toast(err.message || '加载失败', 'error');
+    });
+  }
+
+  function render(data) {
+    if (!data.items.length) {
+      bodyEl.innerHTML = '<tr><td colspan="9" class="empty">还没有任何报名记录，去 <a href="index.html">活动列表</a> 看看吧</td></tr>';
+      App.renderPagination(pagerEl, data, goPage);
+      return;
+    }
+    bodyEl.innerHTML = data.items.map(function (r) {
+      var a = r.activity;
+      var actions = [];
+      actions.push('<a class="btn" href="activity_detail.html?id=' + a.id + '">详情</a>');
+      if (r.qr_available) {
+        actions.push('<button class="btn btn-primary" type="button" data-act="qr" data-reg="' + r.id + '">二维码</button>');
+      }
+      if (['PENDING', 'WON', 'WAITING'].indexOf(r.status) !== -1) {
+        actions.push('<button class="btn btn-danger" type="button" data-act="cancel" data-reg="' + r.id + '" data-activity="' + a.id + '">' +
+          (r.status === 'WON' ? '退出' : '取消') + '</button>');
+      }
+      return '<tr>' +
+        '<td class="wrap">' + App.escapeHtml(a.title) + '</td>' +
+        '<td>' + App.escapeHtml(a.location) + '</td>' +
+        '<td>' + App.fmtTime(a.start_time) + '</td>' +
+        '<td>' + App.fmtTime(a.signup_deadline) + '</td>' +
+        '<td>' + App.statusBadge(a.status) + '</td>' +
+        '<td>' + App.statusBadge(r.status) + '</td>' +
+        '<td>' + (r.lottery_rank == null ? '—' : '#' + r.lottery_rank) + '</td>' +
+        '<td>' + (r.checked_in ? '<span class="badge badge-green">已签到</span>' : '<span class="badge badge-gray">未签到</span>') + '</td>' +
+        '<td><div class="flex">' + actions.join('') + '</div></td>' +
+        '</tr>';
+    }).join('');
+    App.renderPagination(pagerEl, data, goPage);
+  }
+
+  bodyEl.addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'qr') {
+      openQrcode(btn.dataset.reg);
+    } else if (btn.dataset.act === 'cancel') {
+      cancelRegistration(btn, btn.dataset.activity);
+    }
+  });
+
+  function openQrcode(registrationId) {
+    modal.hidden = false;
+    qrBox.innerHTML = '<p class="muted" style="padding:20px 0">加载中…</p>';
+    Api.getBlob('/registrations/' + registrationId + '/qrcode').then(function (blob) {
+      lastObjectUrl = URL.createObjectURL(blob);
+      qrBox.innerHTML = '<img src="' + lastObjectUrl + '" alt="签到二维码">';
+    }).catch(function (err) {
+      qrBox.innerHTML = '';
+      modal.hidden = true;
+      App.toast(err.message || '二维码加载失败（可能已失效）', 'error');
+    });
+  }
+
+  function cancelRegistration(btn, activityId) {
+    if (!confirm('确定取消报名 / 退出中签吗？')) return;
+    btn.disabled = true;
+    Api.del('/activities/' + activityId + '/registrations/me').then(function (data) {
+      var msg = '操作成功' + (data.promoted ? '，本次递补 ' + data.promoted + ' 人' : '');
+      App.toast(msg, 'success');
+      load();
+    }).catch(function (err) {
+      App.toast(err.message || '操作失败', 'error');
+      btn.disabled = false;
+    });
+  }
+
+  function goPage(page) {
+    state.page = page;
+    load();
+  }
+})();
+</script>
+</body>
+</html>

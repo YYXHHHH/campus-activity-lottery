@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>活动列表 — 校园活动系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="navbar"></header>
+
+<main class="container">
+  <h1 class="page-title">校园活动</h1>
+
+  <div class="card">
+    <div class="inline-filters">
+      <select id="status-filter" title="状态筛选">
+        <option value="">全部状态</option>
+        <option value="PUBLISHED">报名中</option>
+        <option value="LOTTERY_DONE">已抽签</option>
+        <option value="DRAFT">草稿</option>
+        <option value="CANCELLED">已取消</option>
+      </select>
+      <input type="search" id="keyword" placeholder="搜索活动名称 / 地点" maxlength="50">
+      <button class="btn btn-primary" id="search-btn" type="button">搜索</button>
+      <button class="btn" id="reset-btn" type="button">重置</button>
+    </div>
+    <p class="small muted" id="role-hint"></p>
+  </div>
+
+  <div id="activity-list"></div>
+  <div id="pager"></div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  'use strict';
+  var PAGE_SIZE = 10;
+  var state = { page: 1, status: '', keyword: '' };
+
+  App.initPage({ page: 'index.html' }).then(function (user) {
+    if (!user) return;
+    // 学生视角后端仅允许 PUBLISHED / LOTTERY_DONE，因此隐藏其余选项（仅 UI 可见性控制）
+    if (user.role === 'STUDENT') {
+      var sel = document.getElementById('status-filter');
+      Array.prototype.slice.call(sel.options).forEach(function (opt) {
+        if (opt.value === 'DRAFT' || opt.value === 'CANCELLED') {
+          opt.disabled = true;
+        }
+      });
+      document.getElementById('role-hint').textContent = '当前显示报名中与已抽签的活动。';
+    } else {
+      document.getElementById('role-hint').textContent =
+        (user.role === 'ADMIN' ? '管理员' : '组织者') + '视角：可查看全部状态的活动。';
+    }
+    load();
+  });
+
+  var listEl = document.getElementById('activity-list');
+  var pagerEl = document.getElementById('pager');
+
+  function load() {
+    listEl.innerHTML = '<div class="empty">加载中…</div>';
+    var query = App.buildQuery({
+      page: state.page,
+      size: PAGE_SIZE,
+      status: state.status,
+      keyword: state.keyword
+    });
+    Api.get('/activities' + query).then(function (data) {
+      render(data);
+    }).catch(function (err) {
+      listEl.innerHTML = '';
+      App.toast(err.message || '加载活动列表失败', 'error');
+    });
+  }
+
+  function render(data) {
+    if (!data.items.length) {
+      listEl.innerHTML = '<div class="empty">暂无符合条件的活动</div>';
+      App.renderPagination(pagerEl, data, goPage);
+      return;
+    }
+    listEl.innerHTML = data.items.map(function (a) {
+      return '<div class="card">' +
+        '<div class="flex spread">' +
+        '<h2 style="margin:0"><a href="activity_detail.html?id=' + a.id + '">' + App.escapeHtml(a.title) + '</a></h2>' +
+        App.statusBadge(a.status) +
+        '</div>' +
+        '<p class="small muted" style="margin:8px 0 0">' +
+        '地点：' + App.escapeHtml(a.location) +
+        ' ｜ 开始时间：' + App.fmtTime(a.start_time) +
+        ' ｜ 报名截止：' + App.fmtTime(a.signup_deadline) +
+        ' ｜ 名额：' + a.quota +
+        '</p>' +
+        '<p style="margin:8px 0 0"><a href="activity_detail.html?id=' + a.id + '">查看详情 / 报名 →</a></p>' +
+        '</div>';
+    }).join('');
+    App.renderPagination(pagerEl, data, goPage);
+  }
+
+  function goPage(page) {
+    state.page = page;
+    load();
+  }
+
+  document.getElementById('search-btn').addEventListener('click', function () {
+    state.page = 1;
+    state.status = document.getElementById('status-filter').value;
+    state.keyword = document.getElementById('keyword').value.trim();
+    load();
+  });
+  document.getElementById('reset-btn').addEventListener('click', function () {
+    state.page = 1;
+    state.status = '';
+    state.keyword = '';
+    document.getElementById('status-filter').value = '';
+    document.getElementById('keyword').value = '';
+    load();
+  });
+  document.getElementById('status-filter').addEventListener('change', function () {
+    state.page = 1;
+    state.status = this.value;
+    load();
+  });
+  document.getElementById('keyword').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') document.getElementById('search-btn').click();
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>扫码签到 — 校园活动系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="navbar"></header>
+
+<main class="container">
+  <h1 class="page-title">现场签到</h1>
+
+  <div class="card">
+    <label class="field"><span>选择活动（本人创建 / 管理）</span>
+      <select id="activity-select">
+        <option value="">加载中…</option>
+      </select>
+    </label>
+    <div class="stat-grid" id="live-stats">
+      <div class="stat-item"><div class="num" id="st-checked">—</div><div class="lbl">已签到</div></div>
+      <div class="stat-item"><div class="num" id="st-won">—</div><div class="lbl">中签人数</div></div>
+      <div class="stat-item"><div class="num" id="st-quota">—</div><div class="lbl">名额</div></div>
+    </div>
+    <p class="small muted" id="poll-hint">统计数据每 10 秒自动刷新。</p>
+  </div>
+
+  <div class="card">
+    <h2>输入 / 扫描签到码</h2>
+    <label class="field"><span>签到码（可粘贴学生二维码对应的链接或码值）</span>
+      <input type="text" id="code-input" class="code-input" placeholder="例如 xY3k9Qz2LmN8pR4t 或完整链接" autocomplete="off">
+    </label>
+    <div class="flex">
+      <button class="btn btn-success btn-lg" id="submit-btn" type="button" style="flex:1">提交签到</button>
+      <button class="btn btn-lg" id="scan-btn" type="button" hidden>打开摄像头扫码</button>
+    </div>
+    <div id="camera-box" hidden>
+      <video id="camera" playsinline muted></video>
+      <button class="btn btn-block" id="stop-scan-btn" type="button" style="margin-top:8px">关闭摄像头</button>
+      <p class="small muted">将学生二维码对准摄像头，识别后自动提交。（需浏览器支持二维码识别 API，不支持时请手动输入码值）</p>
+    </div>
+    <div class="checkin-result" id="result-box"></div>
+  </div>
+
+  <div class="card">
+    <h2>按学号手动补签</h2>
+    <div class="inline-filters">
+      <input type="text" id="manual-username" placeholder="学生学号（用户名）" style="flex:1">
+      <button class="btn btn-primary" id="manual-btn" type="button">补签</button>
+    </div>
+    <p class="small muted">仅可为该活动中已中签的学生补签，规则以后端校验为准。</p>
+  </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  'use strict';
+  var POLL_INTERVAL_MS = 10000;
+  var selectEl = document.getElementById('activity-select');
+  var codeInput = document.getElementById('code-input');
+  var resultBox = document.getElementById('result-box');
+  var submitBtn = document.getElementById('submit-btn');
+  var pollTimer = null;
+  var currentActivityId = '';
+
+  App.initPage({ page: 'checkin.html', roles: ['ORGANIZER', 'ADMIN'] }).then(function (user) {
+    if (!user) return;
+    loadActivities();
+  });
+
+  /* ---------- 活动选择 ---------- */
+  function loadActivities() {
+    Api.get('/activities' + App.buildQuery({ mine: 'true', page: 1, size: 50 })).then(function (data) {
+      if (!data.items.length) {
+        selectEl.innerHTML = '<option value="">暂无活动</option>';
+        return;
+      }
+      selectEl.innerHTML = '<option value="">— 请选择活动 —</option>' + data.items.map(function (a) {
+        return '<option value="' + a.id + '">' + App.escapeHtml('#' + a.id + ' ' + a.title) + '</option>';
+      }).join('');
+      var preset = App.qs('activity');
+      if (preset) selectEl.value = preset;
+      if (selectEl.value) {
+        currentActivityId = selectEl.value;
+        startPolling();
+      }
+      var presetCode = App.qs('code');
+      if (presetCode) {
+        codeInput.value = presetCode;
+        App.toast('已填入扫码链接中的签到码，请选择活动后提交', 'info', 5000);
+      }
+    }).catch(function (err) {
+      selectEl.innerHTML = '<option value="">加载失败</option>';
+      App.toast(err.message || '活动列表加载失败', 'error');
+    });
+  }
+
+  selectEl.addEventListener('change', function () {
+    currentActivityId = this.value;
+    stopPolling();
+    if (currentActivityId) startPolling();
+    else {
+      document.getElementById('st-checked').textContent = '—';
+      document.getElementById('st-won').textContent = '—';
+      document.getElementById('st-quota').textContent = '—';
+    }
+  });
+
+  /* ---------- 统计轮询（每 10 秒） ---------- */
+  function startPolling() {
+    refreshStats();
+    pollTimer = setInterval(refreshStats, POLL_INTERVAL_MS);
+  }
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+  function refreshStats() {
+    if (!currentActivityId) return;
+    Api.get('/activities/' + currentActivityId + '/stats').then(function (s) {
+      document.getElementById('st-checked').textContent = s.checked_in;
+      document.getElementById('st-won').textContent = s.won;
+      document.getElementById('st-quota').textContent = s.quota;
+    }).catch(function () {
+      /* 轮询失败静默处理，避免打断现场签到 */
+    });
+  }
+  window.addEventListener('beforeunload', stopPolling);
+
+  /* ---------- 结果展示 ---------- */
+  function showOk(name, username, time) {
+    resultBox.className = 'checkin-result ok';
+    resultBox.innerHTML = '<div>✓ 签到成功</div>' +
+      '<div class="big">' + App.escapeHtml(name) + '</div>' +
+      '<div>学号：' + App.escapeHtml(username) + '</div>' +
+      '<div class="small">' + App.escapeHtml(time || '') + '</div>' +
+      '<p class="small">请与本人核对姓名与学号</p>';
+  }
+  function showFail(message, hint) {
+    resultBox.className = 'checkin-result fail';
+    resultBox.innerHTML = '<div>✗ 签到失败</div><div class="big" style="font-size:18px">' +
+      App.escapeHtml(message) + '</div>' + (hint ? '<div class="small">' + App.escapeHtml(hint) + '</div>' : '');
+  }
+  function clearResult() {
+    resultBox.className = 'checkin-result';
+    resultBox.innerHTML = '';
+  }
+
+  /* ---------- 提交签到 ---------- */
+  function submitCode(code) {
+    if (!currentActivityId) {
+      App.toast('请先选择活动', 'error');
+      return Promise.resolve(false);
+    }
+    if (!code) {
+      App.toast('请输入签到码', 'error');
+      return Promise.resolve(false);
+    }
+    submitBtn.disabled = true;
+    return Api.post('/activities/' + currentActivityId + '/checkin', { code: code }).then(function (data) {
+      showOk(data.user_name, data.username, App.fmtTime(data.checked_in_at));
+      codeInput.value = '';
+      refreshStats();
+      submitBtn.disabled = false;
+      return true;
+    }).catch(function (err) {
+      // 重复签到等错误：直接展示后端中文 message（业务判断以后端为准）
+      var hint = '';
+      if (err.data && err.data.checked_in_at) hint = '首次签到时间：' + App.fmtTime(err.data.checked_in_at);
+      showFail(err.message || '签到失败', hint);
+      codeInput.value = '';
+      submitBtn.disabled = false;
+      return false;
+    });
+  }
+
+  submitBtn.addEventListener('click', function () {
+    submitCode(codeInput.value.trim());
+  });
+  codeInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') submitCode(codeInput.value.trim());
+  });
+
+  /* ---------- 手动补签 ---------- */
+  document.getElementById('manual-btn').addEventListener('click', function () {
+    if (!currentActivityId) {
+      App.toast('请先选择活动', 'error');
+      return;
+    }
+    var username = document.getElementById('manual-username').value.trim();
+    if (!username) {
+      App.toast('请输入学号', 'error');
+      return;
+    }
+    var btn = this;
+    btn.disabled = true;
+    Api.post('/activities/' + currentActivityId + '/checkin/manual', { username: username }).then(function (data) {
+      showOk(data.user_name, data.username, App.fmtTime(data.checked_in_at) + '（' + (data.method === 'MANUAL' ? '手动补签' : '扫码') + '）');
+      document.getElementById('manual-username').value = '';
+      refreshStats();
+    }).catch(function (err) {
+      showFail(err.message || '补签失败', '');
+    }).finally(function () {
+      btn.disabled = false;
+    });
+  });
+
+  /* ---------- 摄像头扫码（可选，依赖浏览器 BarcodeDetector） ---------- */
+  var scanBtn = document.getElementById('scan-btn');
+  var cameraBox = document.getElementById('camera-box');
+  var video = document.getElementById('camera');
+  var stream = null;
+  var detectTimer = null;
+
+  // 局域网 http://IP:8000 不是安全上下文，navigator.mediaDevices 为 undefined，此时只保留手动输入
+  if ('BarcodeDetector' in window && navigator.mediaDevices) {
+    scanBtn.hidden = false;
+  }
+
+  scanBtn.addEventListener('click', function () {
+    if (!currentActivityId) {
+      App.toast('请先选择活动再扫码', 'error');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function (s) {
+      stream = s;
+      video.srcObject = s;
+      video.play();
+      cameraBox.hidden = false;
+      var detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      detectTimer = setInterval(function () {
+        detector.detect(video).then(function (codes) {
+          if (codes && codes.length) {
+            var value = codes[0].rawValue || '';
+            stopScan();
+            codeInput.value = value; // 完整 URL 也可，后端会解析 code= 参数
+            submitCode(value);
+          }
+        }).catch(function () { /* 忽略单帧识别失败 */ });
+      }, 500);
+    }).catch(function () {
+      App.toast('无法打开摄像头，请手动输入签到码', 'error');
+    });
+  });
+
+  document.getElementById('stop-scan-btn').addEventListener('click', stopScan);
+
+  function stopScan() {
+    if (detectTimer) { clearInterval(detectTimer); detectTimer = null; }
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    video.srcObject = null;
+    cameraBox.hidden = true;
+  }
+})();
+</script>
+</body>
+</html>

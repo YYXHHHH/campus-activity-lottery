@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 — 校园活动系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="auth-box">
+  <div class="card">
+    <div class="title">注册新账号</div>
+    <form id="register-form" autocomplete="off">
+      <label class="field"><span>用户名（4–50 位字母、数字或下划线）*</span>
+        <input type="text" id="username" required minlength="4" maxlength="50" pattern="[A-Za-z0-9_]+">
+      </label>
+      <label class="field"><span>密码（至少 6 位）*</span>
+        <input type="password" id="password" required minlength="6" maxlength="64">
+      </label>
+      <label class="field"><span>姓名 *</span>
+        <input type="text" id="real_name" required maxlength="50">
+      </label>
+      <label class="field"><span>角色 *</span>
+        <select id="role" required>
+          <option value="STUDENT">学生</option>
+          <option value="ORGANIZER">组织者</option>
+        </select>
+      </label>
+      <label class="field"><span>邮箱（可选）</span>
+        <input type="email" id="email">
+      </label>
+      <label class="field"><span>手机号（可选）</span>
+        <input type="tel" id="phone">
+      </label>
+      <button class="btn btn-primary btn-lg btn-block" type="submit" id="submit-btn">注 册</button>
+    </form>
+    <div class="auth-links">
+      <a href="login.html">已有账号？去登录</a>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  'use strict';
+  var form = document.getElementById('register-form');
+  var btn = document.getElementById('submit-btn');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var payload = {
+      username: document.getElementById('username').value.trim(),
+      password: document.getElementById('password').value,
+      real_name: document.getElementById('real_name').value.trim(),
+      role: document.getElementById('role').value
+    };
+    var email = document.getElementById('email').value.trim();
+    var phone = document.getElementById('phone').value.trim();
+    if (email) payload.email = email;
+    if (phone) payload.phone = phone;
+
+    btn.disabled = true;
+    btn.textContent = '提交中…';
+    Api.post('/auth/register', payload).then(function () {
+      App.toast('注册成功，请登录', 'success');
+      setTimeout(function () { location.href = 'login.html'; }, 800);
+    }).catch(function (err) {
+      App.toast(err.message || '注册失败', 'error');
+      btn.disabled = false;
+      btn.textContent = '注 册';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>活动详情 — 校园活动系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="navbar"></header>
+
+<main class="container">
+  <p><a href="index.html">← 返回活动列表</a></p>
+  <div id="detail"><div class="empty">加载中…</div></div>
+
+  <div class="card" id="qr-card" hidden>
+    <h2>我的签到二维码</h2>
+    <div id="qr-box" style="text-align:center"></div>
+    <p class="small muted">请截图或保持本页，签到时向组织者出示。二维码仅在中签后有效。</p>
+  </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  'use strict';
+  var activityId = App.qs('id');
+  var detailRoot = document.getElementById('detail');
+  var qrCard = document.getElementById('qr-card');
+  var qrBox = document.getElementById('qr-box');
+  var currentUser = null;
+
+  if (!activityId || !/^\d+$/.test(activityId)) {
+    detailRoot.innerHTML = '<div class="empty">缺少有效的活动 ID</div>';
+    return;
+  }
+
+  App.initPage({ page: 'index.html' }).then(function (user) {
+    if (!user) return;
+    currentUser = user;
+    load();
+  });
+
+  function load() {
+    detailRoot.innerHTML = '<div class="empty">加载中…</div>';
+    Api.get('/activities/' + encodeURIComponent(activityId)).then(function (a) {
+      render(a);
+    }).catch(function (err) {
+      detailRoot.innerHTML = '<div class="empty">加载失败：' + App.escapeHtml(err.message || '未知错误') + '</div>';
+    });
+  }
+
+  /* 状态行的补充说明：报名中提示自动抽签（R11），已抽签提示抽签时刻 */
+  function statusHint(a) {
+    if (a.status === 'PUBLISHED') return '报名截止后 30 秒内自动抽签';
+    if (a.status === 'LOTTERY_DONE') return '抽签时间：' + App.fmtTime(a.lottery_at);
+    if (a.status === 'DRAFT') return '尚未发布';
+    return '活动已取消';
+  }
+
+  function render(a) {
+    var rows = [
+      ['活动状态', App.statusBadge(a.status) + ' <span class="muted small">' + statusHint(a) + '</span>'],
+      ['地点', App.escapeHtml(a.location)],
+      ['开始时间', App.fmtTime(a.start_time)],
+      ['结束时间', App.fmtTime(a.end_time)],
+      ['报名截止', App.fmtTime(a.signup_deadline) + ' <span class="muted small">（以下方按钮的后端校验为准）</span>'],
+      ['名额', a.quota],
+      ['当前报名人数', a.registered_count],
+      ['抽签时间', App.fmtTime(a.lottery_at)]
+    ];
+    var table = '<table class="data">' + rows.map(function (r) {
+      return '<tr><th style="width:130px">' + r[0] + '</th><td class="wrap">' + r[1] + '</td></tr>';
+    }).join('') + '</table>';
+
+    var desc = a.description
+      ? '<p class="wrap" style="white-space:pre-wrap">' + App.escapeHtml(a.description) + '</p>'
+      : '<p class="muted">暂无简介</p>';
+
+    var actionsHtml = '';
+    if (currentUser.role === 'STUDENT') {
+      if (a.my_registration) {
+        var reg = a.my_registration;
+        actionsHtml =
+          '<p>我的报名状态：' + App.statusBadge(reg.status) +
+          (reg.lottery_rank !== null && reg.lottery_rank !== undefined ? ' <span class="muted small">抽签排名 #' + reg.lottery_rank + '</span>' : '') +
+          (reg.checked_in ? ' <span class="badge badge-green">已签到</span>' : '') + '</p>' +
+          '<div class="flex">' +
+          (reg.qr_available ? '<button class="btn btn-primary" id="qr-btn" type="button">查看签到二维码</button>' : '') +
+          (['PENDING', 'WON', 'WAITING'].indexOf(reg.status) !== -1
+            ? '<button class="btn btn-danger" id="cancel-reg-btn" type="button">' + (reg.status === 'WON' ? '退出中签' : '取消报名') + '</button>'
+            : '') +
+          '</div>';
+      } else {
+        actionsHtml =
+          '<div class="checkbox-row"><input type="checkbox" id="accept-waitlist" checked><label for="accept-waitlist">接受候补递补</label></div>' +
+          '<button class="btn btn-primary btn-lg" id="signup-btn" type="button">报名本次活动</button>';
+      }
+      actionsHtml = '<h2>报名</h2>' + actionsHtml;
+    } else {
+      var ownerLinks = '';
+      if (currentUser.role === 'ADMIN' || a.organizer_id === currentUser.id) {
+        ownerLinks = '<div class="flex">' +
+          '<a class="btn" href="activity_manage.html?id=' + a.id + '">活动管理（名单/统计/导出）</a>' +
+          '<a class="btn" href="checkin.html?activity=' + a.id + '">去签到页</a>' +
+          '</div>';
+      }
+      actionsHtml = '<p class="muted">仅学生身份可报名。' + (ownerLinks ? '您是该活动的管理方：' : '') + '</p>' + ownerLinks;
+    }
+
+    detailRoot.innerHTML =
+      '<div class="card"><h1 class="page-title" style="margin-top:0">' + App.escapeHtml(a.title) + '</h1>' + desc + table + '</div>' +
+      '<div class="card">' + actionsHtml + '</div>';
+
+    bindActions(a);
+  }
+
+  function bindActions(a) {
+    var signupBtn = document.getElementById('signup-btn');
+    if (signupBtn) {
+      signupBtn.addEventListener('click', function () {
+        var accept = document.getElementById('accept-waitlist').checked;
+        signupBtn.disabled = true;
+        Api.post('/activities/' + a.id + '/registrations', { accept_waitlist: accept }).then(function (reg) {
+          App.toast('报名成功，当前状态：' + (reg.status === 'PENDING' ? '待抽签' : reg.status), 'success');
+          load();
+        }).catch(function (err) {
+          // 业务判断全部交由后端：截止/状态/重复报名等均以返回 message 为准
+          App.toast(err.message || '报名失败', 'error');
+          signupBtn.disabled = false;
+          load(); // 可能被兜底抽签改变状态，刷新详情
+        });
+      });
+    }
+
+    var cancelBtn = document.getElementById('cancel-reg-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function () {
+        if (!confirm('确定取消报名 / 退出中签吗？')) return;
+        cancelBtn.disabled = true;
+        Api.del('/activities/' + a.id + '/registrations/me').then(function (data) {
+          var msg = '操作成功，新状态：' + App.statusBadgeText(data.status);
+          if (data.promoted) msg += '，本次递补 ' + data.promoted + ' 人';
+          App.toast(msg, 'success');
+          load();
+        }).catch(function (err) {
+          App.toast(err.message || '操作失败', 'error');
+          cancelBtn.disabled = false;
+        });
+      });
+    }
+
+    var qrBtn = document.getElementById('qr-btn');
+    if (qrBtn) {
+      qrBtn.addEventListener('click', function () {
+        qrBtn.disabled = true;
+        showQrcode(a.my_registration.id);
+        qrBtn.disabled = false;
+      });
+    }
+  }
+
+  function showQrcode(registrationId) {
+    qrCard.hidden = false;
+    qrBox.innerHTML = '<p class="muted">二维码加载中…</p>';
+    Api.getBlob('/registrations/' + registrationId + '/qrcode').then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      qrBox.innerHTML = '<img src="' + url + '" alt="签到二维码" style="max-width:280px">' +
+        '<p><a href="' + url + '" download="qrcode.png">下载二维码</a></p>';
+      qrCard.scrollIntoView({ behavior: 'smooth' });
+    }).catch(function (err) {
+      qrBox.innerHTML = '';
+      App.toast(err.message || '二维码加载失败', 'error');
+    });
+  }
+
+  // 状态中文（仅用于 Toast 文案）
+  App.statusBadgeText = function (status) {
+    var div = document.createElement('div');
+    div.innerHTML = App.statusBadge(status);
+    return div.textContent;
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的活动 — 校园活动系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="navbar"></header>
+
+<main class="container">
+  <h1 class="page-title">我的活动</h1>
+
+  <div class="card">
+    <h2>创建新活动</h2>
+    <p class="small muted">时间为本地时区，提交时自动转换为 UTC ISO 字符串。可先存草稿，稍后发布。</p>
+    <form id="create-form" autocomplete="off">
+      <div class="grid-2">
+        <label class="field"><span>活动名称 *</span>
+          <input type="text" id="f-title" required maxlength="100">
+        </label>
+        <label class="field"><span>地点 *</span>
+          <input type="text" id="f-location" required maxlength="200">
+        </label>
+        <label class="field"><span>开始时间 *</span>
+          <input type="datetime-local" id="f-start" required>
+        </label>
+        <label class="field"><span>结束时间（可选）</span>
+          <input type="datetime-local" id="f-end">
+        </label>
+        <label class="field"><span>报名截止时间 *</span>
+          <input type="datetime-local" id="f-deadline" required>
+        </label>
+        <label class="field"><span>名额（≥1）*</span>
+          <input type="number" id="f-quota" required min="1" max="100000" value="10">
+        </label>
+      </div>
+      <label class="field"><span>简介（可选）</span>
+        <textarea id="f-desc" rows="3" maxlength="2000"></textarea>
+      </label>
+      <div class="checkbox-row">
+        <input type="checkbox" id="f-publish">
+        <label for="f-publish">创建后立即发布（不勾选则存为草稿）</label>
+      </div>
+      <button class="btn btn-primary btn-lg" type="submit" id="create-btn">创建活动</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>活动列表</h2>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>ID</th><th>名称</th><th>地点</th><th>开始时间</th><th>报名截止</th>
+            <th>名额</th><th>状态</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="act-body"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody>
+      </table>
+    </div>
+    <div id="pager"></div>
+  </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  'use strict';
+  var PAGE_SIZE = 10;
+  var state = { page: 1 };
+  var bodyEl = document.getElementById('act-body');
+  var pagerEl = document.getElementById('pager');
+
+  App.initPage({ page: 'organizer.html', roles: ['ORGANIZER', 'ADMIN'] }).then(function (user) {
+    if (!user) return;
+    load();
+  });
+
+  /* ---------- 创建 ---------- */
+  document.getElementById('create-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var start = App.toUtcIso(document.getElementById('f-start').value);
+    var end = App.toUtcIso(document.getElementById('f-end').value);
+    var deadline = App.toUtcIso(document.getElementById('f-deadline').value);
+    var quota = parseInt(document.getElementById('f-quota').value, 10);
+    var desc = document.getElementById('f-desc').value.trim();
+    var publish = document.getElementById('f-publish').checked;
+
+    if (!start || !deadline) {
+      App.toast('请填写正确的开始时间与报名截止时间', 'error');
+      return;
+    }
+    var payload = {
+      title: document.getElementById('f-title').value.trim(),
+      location: document.getElementById('f-location').value.trim(),
+      start_time: start,
+      end_time: end,
+      signup_deadline: deadline,
+      quota: isNaN(quota) ? 0 : quota,
+      status: publish ? 'PUBLISHED' : 'DRAFT'
+    };
+    if (desc) payload.description = desc;
+
+    var btn = document.getElementById('create-btn');
+    btn.disabled = true;
+    Api.post('/activities', payload).then(function (a) {
+      App.toast('创建成功（活动 ID：' + a.id + '，状态：' + a.status + '）', 'success');
+      document.getElementById('create-form').reset();
+      state.page = 1;
+      load();
+    }).catch(function (err) {
+      App.toast(err.message || '创建失败', 'error');
+    }).finally(function () {
+      btn.disabled = false;
+    });
+  });
+
+  /* ---------- 列表 ---------- */
+  function load() {
+    Api.get('/activities' + App.buildQuery({ mine: 'true', page: state.page, size: PAGE_SIZE })).then(function (data) {
+      render(data);
+    }).catch(function (err) {
+      bodyEl.innerHTML = '<tr><td colspan="8" class="empty">加载失败</td></tr>';
+      App.toast(err.message || '加载失败', 'error');
+    });
+  }
+
+  function render(data) {
+    if (!data.items.length) {
+      bodyEl.innerHTML = '<tr><td colspan="8" class="empty">暂无活动，请在上方创建</td></tr>';
+      App.renderPagination(pagerEl, data, goPage);
+      return;
+    }
+    bodyEl.innerHTML = data.items.map(function (a) {
+      var actions = '<a class="btn" href="activity_manage.html?id=' + a.id + '">管理</a> ' +
+        '<a class="btn" href="checkin.html?activity=' + a.id + '">签到</a>';
+      if (a.status === 'DRAFT') {
+        actions = '<button class="btn btn-primary" type="button" data-act="publish" data-id="' + a.id + '">发布</button> ' + actions;
+      }
+      if (a.status !== 'CANCELLED') {
+        actions += ' <button class="btn btn-danger" type="button" data-act="cancel" data-id="' + a.id + '">取消</button>';
+      }
+      return '<tr>' +
+        '<td>' + a.id + '</td>' +
+        '<td class="wrap">' + App.escapeHtml(a.title) + '</td>' +
+        '<td>' + App.escapeHtml(a.location) + '</td>' +
+        '<td>' + App.fmtTime(a.start_time) + '</td>' +
+        '<td>' + App.fmtTime(a.signup_deadline) + '</td>' +
+        '<td>' + a.quota + '</td>' +
+        '<td>' + App.statusBadge(a.status) + '</td>' +
+        '<td><div class="flex">' + actions + '</div></td>' +
+        '</tr>';
+    }).join('');
+    App.renderPagination(pagerEl, data, goPage);
+  }
+
+  bodyEl.addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    var id = btn.dataset.id;
+    if (btn.dataset.act === 'publish') {
+      btn.disabled = true;
+      Api.post('/activities/' + id + '/publish').then(function () {
+        App.toast('发布成功', 'success');
+        load();
+      }).catch(function (err) {
+        App.toast(err.message || '发布失败', 'error');
+        btn.disabled = false;
+      });
+    } else if (btn.dataset.act === 'cancel') {
+      if (!confirm('确定取消该活动吗？取消后不可恢复，已有报名将无法签到。')) return;
+      btn.disabled = true;
+      Api.post('/activities/' + id + '/cancel').then(function () {
+        App.toast('活动已取消', 'success');
+        load();
+      }).catch(function (err) {
+        App.toast(err.message || '取消失败', 'error');
+        btn.disabled = false;
+      });
+    }
+  });
+
+  function goPage(page) {
+    state.page = page;
+    load();
+  }
+})();
+</script>
+</body>
+</html>

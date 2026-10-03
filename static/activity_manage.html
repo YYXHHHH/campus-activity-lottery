@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>活动管理 — 校园活动系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="navbar"></header>
+
+<main class="container">
+  <h1 class="page-title">活动管理</h1>
+
+  <div class="card" id="picker-card" hidden>
+    <h2>选择要管理的活动</h2>
+    <div class="inline-filters">
+      <select id="activity-picker"></select>
+      <a class="btn" id="create-link" href="organizer.html">去创建新活动</a>
+    </div>
+  </div>
+
+  <div id="manage-root" hidden>
+    <div class="card">
+      <div class="flex spread">
+        <h2 style="margin:0" id="act-title">—</h2>
+        <span id="act-status"></span>
+      </div>
+      <p class="small muted" id="act-meta"></p>
+      <div class="flex">
+        <button class="btn btn-primary" id="lottery-btn" type="button">手动抽签</button>
+        <button class="btn" id="export-all-btn" type="button">导出全部名单</button>
+        <button class="btn" id="export-winners-btn" type="button">导出中签名单</button>
+        <a class="btn" id="checkin-link" href="checkin.html">去签到页</a>
+        <a class="btn" id="detail-link" href="index.html">活动详情</a>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button type="button" data-tab="stats" class="active">统计</button>
+      <button type="button" data-tab="regs">报名名单</button>
+      <button type="button" data-tab="winners">中签 / 候补</button>
+      <button type="button" data-tab="checkins">签到情况</button>
+    </div>
+
+    <div class="tab-panel active" id="panel-stats">
+      <div class="card"><div class="stat-grid" id="stat-grid"><div class="empty">加载中…</div></div></div>
+    </div>
+
+    <div class="tab-panel" id="panel-regs">
+      <div class="card">
+        <div class="inline-filters">
+          <select id="reg-status-filter">
+            <option value="">全部（不含已取消）</option>
+            <option value="PENDING">待抽签</option>
+            <option value="WON">已中签</option>
+            <option value="WAITING">候补中</option>
+            <option value="LOST">未中签</option>
+            <option value="WITHDRAWN">已退出</option>
+            <option value="CANCELLED">已取消</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>ID</th><th>学号</th><th>姓名</th><th>状态</th><th>排名</th><th>接受候补</th><th>签到时间</th><th>报名时间</th></tr></thead>
+            <tbody id="reg-body"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody>
+          </table>
+        </div>
+        <div id="reg-pager"></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-winners">
+      <div class="card">
+        <h3>中签名单（按排名）</h3>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>排名</th><th>学号</th><th>姓名</th><th>签到</th></tr></thead>
+            <tbody id="win-body"><tr><td colspan="4" class="empty">加载中…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>候补队列（按排名）</h3>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>排名</th><th>学号</th><th>姓名</th><th>签到</th></tr></thead>
+            <tbody id="wait-body"><tr><td colspan="4" class="empty">—</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-checkins">
+      <div class="card">
+        <h3>已签到</h3>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>学号</th><th>姓名</th><th>签到时间</th><th>方式</th></tr></thead>
+            <tbody id="ci-body"><tr><td colspan="4" class="empty">加载中…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>未签到（中签者）</h3>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>排名</th><th>学号</th><th>姓名</th></tr></thead>
+            <tbody id="nci-body"><tr><td colspan="3" class="empty">—</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  'use strict';
+  var PAGE_SIZE = 10;
+  var activityId = App.qs('id');
+  var state = { regPage: 1, regStatus: '' };
+  var manageRoot = document.getElementById('manage-root');
+  var pickerCard = document.getElementById('picker-card');
+
+  App.initPage({ page: 'activity_manage.html', roles: ['ORGANIZER', 'ADMIN'] }).then(function (user) {
+    if (!user) return;
+    if (activityId && /^\d+$/.test(activityId)) {
+      startManage();
+    } else {
+      loadPicker();
+    }
+  });
+
+  /* ---------- 无 id：活动选择器 ---------- */
+  function loadPicker() {
+    pickerCard.hidden = false;
+    Api.get('/activities' + App.buildQuery({ mine: 'true', page: 1, size: 50 })).then(function (data) {
+      var sel = document.getElementById('activity-picker');
+      if (!data.items.length) {
+        sel.innerHTML = '<option value="">暂无活动，请先创建</option>';
+        return;
+      }
+      sel.innerHTML = data.items.map(function (a) {
+        return '<option value="' + a.id + '">' + App.escapeHtml('#' + a.id + ' ' + a.title + '（' + statusCn(a.status) + '）') + '</option>';
+      }).join('') + '<option value="">— 请选择 —</option>';
+      sel.addEventListener('change', function () {
+        if (this.value) location.href = 'activity_manage.html?id=' + this.value;
+      });
+    }).catch(function (err) {
+      App.toast(err.message || '加载活动失败', 'error');
+    });
+  }
+
+  function statusCn(status) {
+    var div = document.createElement('div');
+    div.innerHTML = App.statusBadge(status);
+    return div.textContent;
+  }
+
+  /* ---------- 主流程 ---------- */
+  function startManage() {
+    pickerCard.hidden = true;
+    manageRoot.hidden = false;
+    document.getElementById('checkin-link').href = 'checkin.html?activity=' + activityId;
+    document.getElementById('detail-link').href = 'activity_detail.html?id=' + activityId;
+    loadDetail();
+    loadStats();
+    loadRegs();
+    loadWinners();
+    loadCheckins();
+  }
+
+  function loadDetail() {
+    Api.get('/activities/' + activityId).then(function (a) {
+      document.getElementById('act-title').textContent = a.title;
+      document.getElementById('act-status').innerHTML = App.statusBadge(a.status);
+      document.getElementById('act-meta').textContent =
+        'ID ' + a.id + ' ｜ 地点：' + a.location + ' ｜ 开始：' + App.fmtTime(a.start_time) +
+        ' ｜ 报名截止：' + App.fmtTime(a.signup_deadline) + ' ｜ 名额：' + a.quota;
+    }).catch(function (err) {
+      App.toast(err.message || '活动加载失败（可能不存在或无权限）', 'error');
+    });
+  }
+
+  /* ---------- 统计 ---------- */
+  function loadStats() {
+    Api.get('/activities/' + activityId + '/stats').then(function (s) {
+      var items = [
+        ['报名总数', s.registered], ['待抽签', s.pending], ['名额', s.quota],
+        ['中签', s.won], ['候补', s.waiting], ['未中签', s.lost],
+        ['已退出', s.withdrawn], ['已取消', s.cancelled], ['已签到', s.checked_in],
+        ['中签率', App.pct(s.win_rate)], ['签到率', App.pct(s.checkin_rate)], ['名额使用率', App.pct(s.quota_usage)]
+      ];
+      document.getElementById('stat-grid').innerHTML = items.map(function (it) {
+        return '<div class="stat-item"><div class="num">' + it[1] + '</div><div class="lbl">' + it[0] + '</div></div>';
+      }).join('');
+    }).catch(function (err) {
+      document.getElementById('stat-grid').innerHTML = '<div class="empty">' + App.escapeHtml(err.message || '统计加载失败') + '</div>';
+    });
+  }
+
+  /* ---------- 报名名单 ---------- */
+  function loadRegs() {
+    var bodyEl = document.getElementById('reg-body');
+    bodyEl.innerHTML = '<tr><td colspan="8" class="empty">加载中…</td></tr>';
+    Api.get('/activities/' + activityId + '/registrations' +
+      App.buildQuery({ page: state.regPage, size: PAGE_SIZE, status: state.regStatus })).then(function (data) {
+      if (!data.items.length) {
+        bodyEl.innerHTML = '<tr><td colspan="8" class="empty">暂无记录</td></tr>';
+      } else {
+        bodyEl.innerHTML = data.items.map(function (r) {
+          return '<tr>' +
+            '<td>' + r.id + '</td>' +
+            '<td>' + App.escapeHtml(r.username) + '</td>' +
+            '<td>' + App.escapeHtml(r.real_name) + '</td>' +
+            '<td>' + App.statusBadge(r.status) + '</td>' +
+            '<td>' + (r.lottery_rank == null ? '—' : '#' + r.lottery_rank) + '</td>' +
+            '<td>' + (r.accept_waitlist ? '是' : '否') + '</td>' +
+            '<td>' + App.fmtTime(r.checked_in_at) + '</td>' +
+            '<td>' + App.fmtTime(r.created_at) + '</td>' +
+            '</tr>';
+        }).join('');
+      }
+      App.renderPagination(document.getElementById('reg-pager'), data, function (p) {
+        state.regPage = p;
+        loadRegs();
+      });
+    }).catch(function (err) {
+      bodyEl.innerHTML = '<tr><td colspan="8" class="empty">加载失败</td></tr>';
+      App.toast(err.message || '名单加载失败', 'error');
+    });
+  }
+
+  document.getElementById('reg-status-filter').addEventListener('change', function () {
+    state.regStatus = this.value;
+    state.regPage = 1;
+    loadRegs();
+  });
+
+  /* ---------- 中签/候补 ---------- */
+  function loadWinners() {
+    Api.get('/activities/' + activityId + '/winners').then(function (data) {
+      document.getElementById('win-body').innerHTML = rowHtml(data.winners, 4);
+      document.getElementById('wait-body').innerHTML = rowHtml(data.waitlist, 4);
+    }).catch(function (err) {
+      App.toast(err.message || '中签名单加载失败', 'error');
+    });
+  }
+
+  function rowHtml(rows, cols) {
+    if (!rows || !rows.length) {
+      return '<tr><td colspan="' + cols + '" class="empty">暂无记录（若未抽签则此处为空）</td></tr>';
+    }
+    return rows.map(function (r) {
+      return '<tr>' +
+        '<td>#' + r.lottery_rank + '</td>' +
+        '<td>' + App.escapeHtml(r.user.username) + '</td>' +
+        '<td>' + App.escapeHtml(r.user.real_name) + '</td>' +
+        '<td>' + (r.checked_in ? '<span class="badge badge-green">已签到</span>' : '<span class="badge badge-gray">未签到</span>') + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  /* ---------- 签到情况 ---------- */
+  function renderCheckins(checkedIn, notCheckedIn) {
+    var ciBody = document.getElementById('ci-body');
+    var nciBody = document.getElementById('nci-body');
+    ciBody.innerHTML = checkedIn.length
+      ? checkedIn.map(function (r) {
+          return '<tr><td>' + App.escapeHtml(r.user.username) + '</td><td>' + App.escapeHtml(r.user.real_name) +
+            '</td><td>' + App.fmtTime(r.checked_in_at) + '</td><td>' + (r.method ? (r.method === 'MANUAL' ? '手动补签' : '扫码') : '—') + '</td></tr>';
+        }).join('')
+      : '<tr><td colspan="4" class="empty">尚无人签到</td></tr>';
+    nciBody.innerHTML = notCheckedIn.length
+      ? notCheckedIn.map(function (r) {
+          return '<tr><td>#' + r.lottery_rank + '</td><td>' + App.escapeHtml(r.user.username) +
+            '</td><td>' + App.escapeHtml(r.user.real_name) + '</td></tr>';
+        }).join('')
+      : '<tr><td colspan="3" class="empty">中签者均已签到</td></tr>';
+  }
+
+  function loadCheckins() {
+    Api.get('/activities/' + activityId + '/checkins').then(function (data) {
+      renderCheckins(data.checked_in, data.not_checked_in);
+    }).catch(function (err) {
+      App.toast(err.message || '签到数据加载失败', 'error');
+    });
+  }
+
+  /* ---------- 手动抽签 / 导出 ---------- */
+  document.getElementById('lottery-btn').addEventListener('click', function () {
+    if (!confirm('确定现在执行手动抽签吗？（未截止时后端会拒绝；已抽签则幂等返回）')) return;
+    var btn = this;
+    btn.disabled = true;
+    Api.post('/activities/' + activityId + '/lottery').then(function (r) {
+      var msg;
+      if (r.executed) {
+        msg = '抽签完成：中签 ' + r.won + ' 人，候补 ' + r.waiting + ' 人，未中签 ' + r.lost + ' 人';
+      } else {
+        msg = '未执行抽签（' + (r.reason === 'already_done' ? '此前已完成' : '幂等返回') + '）';
+      }
+      App.toast(msg, 'success', 5000);
+      loadDetail(); loadStats(); loadRegs(); loadWinners(); loadCheckins();
+    }).catch(function (err) {
+      App.toast(err.message || '抽签失败', 'error', 5000);
+    }).finally(function () {
+      btn.disabled = false;
+    });
+  });
+
+  document.getElementById('export-all-btn').addEventListener('click', function () {
+    Api.download('/activities/' + activityId + '/export?type=all', 'activity_' + activityId + '_all.xlsx')
+      .catch(function (err) { App.toast(err.message || '导出失败', 'error'); });
+  });
+  document.getElementById('export-winners-btn').addEventListener('click', function () {
+    Api.download('/activities/' + activityId + '/export?type=winners', 'activity_' + activityId + '_winners.xlsx')
+      .catch(function (err) { App.toast(err.message || '导出失败', 'error'); });
+  });
+
+  /* ---------- 标签页 ---------- */
+  Array.prototype.slice.call(document.querySelectorAll('.tabs button')).forEach(function (tabBtn) {
+    tabBtn.addEventListener('click', function () {
+      Array.prototype.slice.call(document.querySelectorAll('.tabs button')).forEach(function (b) { b.classList.remove('active'); });
+      Array.prototype.slice.call(document.querySelectorAll('.tab-panel')).forEach(function (p) { p.classList.remove('active'); });
+      tabBtn.classList.add('active');
+      document.getElementById('panel-' + tabBtn.dataset.tab).classList.add('active');
+    });
+  });
+})();
+</script>
+</body>
+</html>

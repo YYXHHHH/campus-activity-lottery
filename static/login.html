@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 — 校园活动系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="auth-box">
+  <div class="card">
+    <div class="title">校园活动报名抽签与签到系统</div>
+    <form id="login-form" autocomplete="off">
+      <label class="field"><span>用户名</span>
+        <input type="text" id="username" required autocomplete="username">
+      </label>
+      <label class="field"><span>密码</span>
+        <input type="password" id="password" required autocomplete="current-password">
+      </label>
+      <button class="btn btn-primary btn-lg btn-block" type="submit" id="submit-btn">登 录</button>
+    </form>
+    <div class="auth-links">
+      <a href="register.html">没有账号？去注册</a>
+      <a href="index.html">先去首页看看</a>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  'use strict';
+  // 已登录则直接进入首页
+  if (Api.getToken()) {
+    Api.get('/auth/me').then(function () {
+      location.replace('index.html');
+    }).catch(function () {
+      Api.clearSession();
+    });
+  }
+
+  var form = document.getElementById('login-form');
+  var btn = document.getElementById('submit-btn');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
+    if (!username || !password) {
+      App.toast('请输入用户名和密码', 'error');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '登录中…';
+    Api.login(username, password).then(function () {
+      location.href = 'index.html';
+    }).catch(function (err) {
+      App.toast(err.message || '登录失败', 'error');
+      btn.disabled = false;
+      btn.textContent = '登 录';
+    });
+  });
+})();
+</script>
+</body>
+</html>

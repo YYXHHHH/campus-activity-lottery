@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local configuration and data (.env holds SECRET_KEY; never commit)
+.env
+app.db
+app.db-shm
+app.db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Logs and test caches
+*.log
+app.log
+logs/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors and OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Generated documentation deliverables (regenerate with scripts/md_to_docx.py)
+docs/**/*.docx
