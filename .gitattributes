@@ -1,0 +1,13 @@
+# 统一换行符：仓库内一律 LF，避免 Windows/Linux 贡献者之间出现整文件 diff
+* text=auto eol=lf
+
+# Windows 批处理保持 CRLF，双击运行时兼容性最好
+*.bat text eol=crlf
+
+# 二进制文件不做行尾转换
+*.png binary
+*.jpg binary
+*.ico binary
+*.xlsx binary
+*.docx binary
+*.db binary
